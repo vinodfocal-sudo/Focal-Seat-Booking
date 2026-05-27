@@ -65,6 +65,31 @@ async function saveBookingsToSupabase(bookings) {
    Fix: test localStorage availability once at startup; if unavailable, fall back
    to an in-memory store so the app renders and works for the session.
 ============================= */
+var globalBookings = [];
+
+async function initializeSupabaseData() {
+  try {
+    const { data, error } = await supabaseClient
+      .from('seat_bookings')
+      .select('*');
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    globalBookings = data.map(x => ({
+      seat: x.seat,
+      date: x.date,
+      initials: x.initials
+    }));
+
+    renderTable();
+
+  } catch (e) {
+    console.error(e);
+  }
+}
 var KEYS = {
   bookings:  'seatbooking_bookings',
   blocked:   'seatbooking_blocked',
@@ -476,7 +501,7 @@ function confirmBooking() {
   document.getElementById('empSelectErr').classList.remove('show');
   sel.classList.remove('error');
 
-  var bookings = getData(KEYS.bookings);
+  var bookings = globalBookings;
 
   /* Check: seat already booked this day */
   for (var bi = 0; bi < bookings.length; bi++) {
@@ -1051,3 +1076,4 @@ window.addEventListener('load', function() {
   appInit(true);
   scheduleInitRetries();
 });
+initializeSupabaseData();
