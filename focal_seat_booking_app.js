@@ -1,4 +1,14 @@
+const SUPABASE_URL = 'https://xvwuurrfpytblnlkuyjg.supabase.co';
 
+const SUPABASE_KEY = 'sb_publishable_i6kGeV_OctFCL42v0XmPUQ_3GuQxc4G';
+
+const supabaseClient = supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+);
+
+/* ===============================
+   FIX 2: localStorage SAFE WRAPPER
 /* ============================
    FIX 2: localStorage SAFE WRAPPER
    Root cause: SharePoint iframe sandboxing and IE/Edge compatibility modes
@@ -445,7 +455,7 @@ function confirmBooking() {
   }
 
   bookings.push({ seat: pendingCell.seat, date: pendingCell.date, initials: initials });
-  setData(KEYS.bookings, bookings);
+  saveBookingsToSupabase(bookings);
   closeModal('bookingModal');
   renderTable();
   showToast('\u2705 ' + pendingCell.seat + ' booked (' + initials + ') for ' + pendingCell.dayLabel + '!', 'success');
