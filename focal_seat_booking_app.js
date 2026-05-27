@@ -514,7 +514,9 @@ async function confirmBooking() {
   document.getElementById('empSelectErr').classList.remove('show');
   sel.classList.remove('error');
 
-  var bookings = globalBookings;
+  var bookings = [...globalBookings];
+
+globalBookings = bookings;
 
   /* Check: seat already booked this day */
   for (var bi = 0; bi < bookings.length; bi++) {
