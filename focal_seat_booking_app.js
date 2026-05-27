@@ -6,7 +6,55 @@ const supabaseClient = supabase.createClient(
     SUPABASE_URL,
     SUPABASE_KEY
 );
+const supabaseClient = supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
 
+async function loadBookingsFromSupabase() {
+...
+}
+
+async function saveBookingsToSupabase(bookings) {
+...
+}
+async function loadBookingsFromSupabase() {
+  const { data, error } = await supabaseClient
+    .from('seat_bookings')
+    .select('*');
+
+  if (error) {
+    console.error('Load error:', error);
+    return [];
+  }
+
+  return data.map(x => ({
+    seat: x.seat,
+    date: x.date,
+    initials: x.initials
+  }));
+}
+
+async function saveBookingsToSupabase(bookings) {
+  await supabaseClient
+    .from('seat_bookings')
+    .delete()
+    .neq('id', 0);
+
+  const rows = bookings.map(x => ({
+    seat: x.seat,
+    date: x.date,
+    initials: x.initials
+  }));
+
+  const { error } = await supabaseClient
+    .from('seat_bookings')
+    .insert(rows);
+
+  if (error) {
+    console.error('Save error:', error);
+  }
+}
 /* ===============================
    FIX 2: localStorage SAFE WRAPPER 
 /* ============================
@@ -265,7 +313,7 @@ function renderTable() {
       currentWeekStart = getMonday(new Date());
     }
 
-    var bookings = getData(KEYS.bookings);
+    var bookings = await loadBookingsFromSupabase();
     var blocked  = getData(KEYS.blocked);
     var holidays = getData(KEYS.holidays);
     console.log('[FocalBooking] Data loaded — bookings:', bookings.length, 'blocked:', blocked.length, 'holidays:', holidays.length);
