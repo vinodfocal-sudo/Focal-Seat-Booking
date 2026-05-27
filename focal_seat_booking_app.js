@@ -503,7 +503,7 @@ function openBookingModal(seat, date, dayLabel) {
   setTimeout(function() { if (sel) sel.focus(); }, 220);
 }
 
-function confirmBooking() {
+async function confirmBooking() {
   var sel      = document.getElementById('empSelect');
   var initials = sel ? sel.value.trim().toUpperCase() : '';
   if (!initials) {
@@ -541,9 +541,14 @@ function confirmBooking() {
   }
 
   bookings.push({ seat: pendingCell.seat, date: pendingCell.date, initials: initials });
-  saveBookingsToSupabase(bookings);
-  closeModal('bookingModal');
-  renderTable();
+
+await saveBookingsToSupabase(bookings);
+
+globalBookings = await loadBookingsFromSupabase();
+
+closeModal('bookingModal');
+
+renderTable();
   showToast('\u2705 ' + pendingCell.seat + ' booked (' + initials + ') for ' + pendingCell.dayLabel + '!', 'success');
 }
 
