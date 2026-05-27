@@ -6,18 +6,6 @@ const supabaseClient = supabase.createClient(
     SUPABASE_URL,
     SUPABASE_KEY
 );
-const supabaseClient = supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
-
-async function loadBookingsFromSupabase() {
-...
-}
-
-async function saveBookingsToSupabase(bookings) {
-...
-}
 async function loadBookingsFromSupabase() {
   const { data, error } = await supabaseClient
     .from('seat_bookings')
@@ -53,6 +41,31 @@ async function saveBookingsToSupabase(bookings) {
 
   if (error) {
     console.error('Save error:', error);
+  }
+}
+var globalBookings = [];
+
+async function initializeSupabaseData() {
+  try {
+    const { data, error } = await supabaseClient
+      .from('seat_bookings')
+      .select('*');
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    globalBookings = data.map(x => ({
+      seat: x.seat,
+      date: x.date,
+      initials: x.initials
+    }));
+
+    renderTable();
+
+  } catch (e) {
+    console.error(e);
   }
 }
 /* ===============================
@@ -329,7 +342,7 @@ function isPermanentlyBlocked(seat, dateStr) {
    RENDER TABLE — fully wrapped in try/catch
    Any single failure now logs + shows error message instead of silent blank
 ============================= */
-function renderTable() {
+async function renderTable() {
   console.log('[FocalBooking] renderTable() called. currentWeekStart =', currentWeekStart);
   try {
     /* Guard: ensure currentWeekStart is valid */
