@@ -8,7 +8,7 @@ const supabaseClient = supabase.createClient(
 );
 
 /* ===============================
-   FIX 2: localStorage SAFE WRAPPER
+   FIX 2: localStorage SAFE WRAPPER 
 /* ============================
    FIX 2: localStorage SAFE WRAPPER
    Root cause: SharePoint iframe sandboxing and IE/Edge compatibility modes
