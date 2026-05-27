@@ -808,7 +808,7 @@ tbody tr:hover { background: #fafafa; }
             <div class="how-step"><div class="step-num">1</div><div>Open the shared booking link</div></div>
             <div class="how-step"><div class="step-num">2</div><div>Navigate to desired week</div></div>
             <div class="how-step"><div class="step-num">3</div><div>Click any grey available cell</div></div>
-            <div class="how-step"><div class="step-num">4</div><div>Enter your 2-3 letter initials</div></div>
+            <div class="how-step"><div class="step-num">4</div><div>Select your name from the dropdown</div></div>
             <div class="how-step"><div class="step-num">5</div><div>Seat turns green with your initials</div></div>
             <div class="how-step"><div class="step-num">6</div><div>Click green cell to edit or cancel</div></div>
           </div>
@@ -921,6 +921,7 @@ tbody tr:hover { background: #fafafa; }
     <div class="admin-actions">
       <button class="btn btn-danger" style="flex:none;padding:8px 14px;font-size:12px;" onclick="confirmResetAll()">🗑️ Reset All Bookings</button>
       <button class="btn btn-secondary" style="flex:none;padding:8px 14px;font-size:12px;" onclick="exportBookings()">📥 Export Bookings (JSON)</button>
+      <button class="btn btn-secondary" style="flex:none;padding:8px 14px;font-size:12px;background:var(--green-light);color:var(--green-dark);border:1px solid #86efac;" onclick="exportBookingsCSV()">📊 Export Bookings (CSV)</button>
     </div>
 
     <div class="admin-grid">
@@ -1023,7 +1024,7 @@ tbody tr:hover { background: #fafafa; }
 </footer>
 
 <!-- ========================
-  BOOKING MODAL  (MODIFIED #2 — initials only)
+  BOOKING MODAL  (dropdown — name + initials shown, only initials saved to seat)
 ========================= -->
 <div class="modal-overlay" id="bookingModal">
   <div class="modal">
@@ -1033,11 +1034,12 @@ tbody tr:hover { background: #fafafa; }
     </div>
     <div class="modal-info" id="modalSeatInfo">Seat S01 · Monday</div>
     <div class="form-group">
-      <label class="form-label">Your Initials (2–3 letters) *</label>
-      <input class="form-input initials-input" id="empInitials" placeholder="VK" maxlength="3"
-        oninput="this.value=this.value.toUpperCase().replace(/[^A-Z]/g,'')"
+      <label class="form-label">Select Your Name *</label>
+      <select class="form-input" id="empSelect" style="width:100%;padding:9px 10px;font-size:13px;"
         onkeydown="if(event.key==='Enter')confirmBooking()">
-      <div class="error-msg" id="empInitialsErr">Please enter 2–3 uppercase letters.</div>
+        <option value="">— Select your name —</option>
+      </select>
+      <div class="error-msg" id="empSelectErr">Please select your name from the list.</div>
     </div>
     <div class="modal-btns">
       <button class="btn btn-secondary" onclick="closeModal('bookingModal')">Cancel</button>

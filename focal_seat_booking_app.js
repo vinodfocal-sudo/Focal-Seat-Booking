@@ -94,40 +94,59 @@ function removeDataRaw(key) {
 ============================= */
 function initDemoData() {
   try {
-    if (getDataRaw('_focal_demo_v2')) {
-      console.log('[FocalBooking] Demo data already loaded, skipping.');
+    if (getDataRaw('_focal_demo_v3')) {
+      console.log('[FocalBooking] Demo data v3 already loaded, skipping.');
       return;
     }
-    console.log('[FocalBooking] Loading demo data...');
+    console.log('[FocalBooking] Loading demo data v3 — refreshing employee list...');
+    /* Preserve any existing bookings and blocked seats; only reset resources */
+    var existingBookings = getData(KEYS.bookings);
+    var existingBlocked  = getData(KEYS.blocked);
     var today = new Date();
     var mon = getMonday(today);
     var fmt = function(d) { return isoDate(d); };
-    var bookings = [
-      { seat:'S01', date:fmt(addDays(mon,0)), initials:'VK' },
-      { seat:'S03', date:fmt(addDays(mon,0)), initials:'MB' },
-      { seat:'S05', date:fmt(addDays(mon,1)), initials:'RK' },
-      { seat:'S07', date:fmt(addDays(mon,2)), initials:'AS' },
-      { seat:'S10', date:fmt(addDays(mon,3)), initials:'NP' },
-      { seat:'S02', date:fmt(addDays(mon,4)), initials:'DR' }
+    var bookings = existingBookings.length ? existingBookings : [
+      { seat:'S03', date:fmt(addDays(mon,0)), initials:'VK' },
+      { seat:'S05', date:fmt(addDays(mon,1)), initials:'MB' },
+      { seat:'S07', date:fmt(addDays(mon,2)), initials:'NJ' }
     ];
-    var blocked = [
-      { seat:'S29', date:fmt(addDays(mon,0)) },
-      { seat:'S30', date:fmt(addDays(mon,1)) }
-    ];
+    var blocked = existingBlocked.length ? existingBlocked : [];
     var resources = [
-      { name:'Vinod Kumar',      initials:'VK', type:'Office Seating', status:'Available' },
-      { name:'Mohammed Basheer', initials:'MB', type:'Office Seating', status:'Available' },
-      { name:'Rahul Krishnan',   initials:'RK', type:'Office Seating', status:'Available' },
-      { name:'Arjun Singh',      initials:'AS', type:'Office Seating', status:'Available' },
-      { name:'Neha Patel',       initials:'NP', type:'Office Seating', status:'Available' },
-      { name:'Deepak Roy',       initials:'DR', type:'Office Seating', status:'Available' }
+      { name:'Vinod Kumar',           initials:'VK',  type:'Office Seating', status:'Available' },
+      { name:'Mohammed Basheer',      initials:'MB',  type:'Office Seating', status:'Available' },
+      { name:'Nidhina Jamal',         initials:'NJ',  type:'Office Seating', status:'Available' },
+      { name:'Anish Kumar',           initials:'AK',  type:'Office Seating', status:'Available' },
+      { name:'Bhagyaraj NG',          initials:'BN',  type:'Office Seating', status:'Available' },
+      { name:'Akshay S',              initials:'AS',  type:'Office Seating', status:'Available' },
+      { name:'Aneesh M A',            initials:'AM',  type:'Office Seating', status:'Available' },
+      { name:'Aswin Chandh C S',      initials:'AC',  type:'Office Seating', status:'Available' },
+      { name:'Muralidharan K',        initials:'MK',  type:'Office Seating', status:'Available' },
+      { name:'Sameer Venugopal',      initials:'SV',  type:'Office Seating', status:'Available' },
+      { name:'Arun Das',              initials:'AD',  type:'Office Seating', status:'Available' },
+      { name:'Sidharth S Nair',       initials:'SN',  type:'Office Seating', status:'Available' },
+      { name:'Ajith P Babu',          initials:'AB',  type:'Office Seating', status:'Available' },
+      { name:'Arun P J',              initials:'AP',  type:'Office Seating', status:'Available' },
+      { name:'Abhijith N',            initials:'ABN', type:'Office Seating', status:'Available' },
+      { name:'Ponnu Anna Varghese',   initials:'PA',  type:'Office Seating', status:'Available' },
+      { name:'Jinto Thomas',          initials:'JT',  type:'Office Seating', status:'Available' },
+      { name:'Anusuya N V',           initials:'ANV', type:'Office Seating', status:'Available' },
+      { name:'Mohammed Abu Thahair',  initials:'MA',  type:'Office Seating', status:'Available' },
+      { name:'Magesh M',              initials:'MM',  type:'Office Seating', status:'Available' },
+      { name:'Gouri Vinod',           initials:'GV',  type:'Office Seating', status:'Available' },
+      { name:'Sooraj R',              initials:'SR',  type:'Office Seating', status:'Available' },
+      { name:'Kaverimani Ramasamy',   initials:'KR',  type:'Office Seating', status:'Available' },
+      { name:'Aby George',            initials:'AG',  type:'Office Seating', status:'Available' },
+      { name:'Jayakrishnan O J',      initials:'JO',  type:'Office Seating', status:'Available' },
+      { name:'Jeevan Roy',            initials:'JR',  type:'Office Seating', status:'Available' },
+      { name:'Ajmal Khan',            initials:'AJK', type:'Office Seating', status:'Available' },
+      { name:'Vijesh Vijayan',        initials:'VV',  type:'Office Seating', status:'Available' }
     ];
     setData(KEYS.bookings,  bookings);
     setData(KEYS.blocked,   blocked);
-    setData(KEYS.holidays,  []);
+    if (!getData(KEYS.holidays).length) { setData(KEYS.holidays, []); }
     setData(KEYS.resources, resources);
-    setDataRaw('_focal_demo_v2', '1');
-    console.log('[FocalBooking] Demo data loaded OK.');
+    setDataRaw('_focal_demo_v3', '1');
+    console.log('[FocalBooking] Demo data v3 loaded OK — 28 employees set.');
   } catch(e) {
     console.warn('[FocalBooking] initDemoData failed (non-fatal):', e);
     /* Non-fatal — app renders with empty data rather than crashing */
@@ -211,6 +230,19 @@ var SEATS = (function() {
 var DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
 /* ============================
+   PERMANENT BLOCKED SEATS — S01, S15, S21, S26 blocked until 31 Dec 2026
+   Hard-coded; not stored in localStorage. Admin UI block/unblock does not
+   affect these. To lift, remove the seat from the array below.
+============================= */
+var PERMANENT_BLOCKED_SEATS = ['S01', 'S15', 'S21', 'S26'];
+var PERMANENT_BLOCK_UNTIL   = '2026-12-31';
+
+function isPermanentlyBlocked(seat, dateStr) {
+  if (PERMANENT_BLOCKED_SEATS.indexOf(seat) === -1) return false;
+  return dateStr <= PERMANENT_BLOCK_UNTIL;
+}
+
+/* ============================
    RENDER TABLE — fully wrapped in try/catch
    Any single failure now logs + shows error message instead of silent blank
 ============================= */
@@ -289,10 +321,15 @@ function renderTable() {
         var bkgCell = null;
         for (var bk = 0; bk < bookings.length; bk++) { if (bookings[bk].seat === seat && bookings[bk].date === dateStr) { bkgCell = bookings[bk]; break; } }
 
+        /* Permanent block overrides everything */
+        var permBlocked = isPermanentlyBlocked(seat, dateStr);
+
         if (holCell) {
           div.classList.add('holiday'); div.textContent = 'PH'; div.title = holCell.name; totalHoliday++;
-        } else if (blkCell) {
-          div.classList.add('unavailable'); div.textContent = '\u2715'; div.title = 'Not Available'; totalBlocked++;
+        } else if (permBlocked || blkCell) {
+          div.classList.add('unavailable'); div.textContent = '\u2715';
+          div.title = permBlocked ? 'Permanently Not Available' : 'Not Available';
+          totalBlocked++;
         } else if (bkgCell) {
           div.classList.add('booked'); div.textContent = bkgCell.initials; div.title = 'Booked: ' + bkgCell.initials; totalBooked++;
           /* Closure fix: capture seat/dateStr/bkgCell for onclick */
@@ -347,40 +384,66 @@ function changeWeek(dir) {
 }
 
 /* ============================
-   BOOKING MODAL — initials only, fully ES5
+   BOOKING MODAL — dropdown (name + initials), saves only initials to seat
 ============================= */
 function openBookingModal(seat, date, dayLabel) {
   pendingCell = { seat: seat, date: date, dayLabel: dayLabel };
   document.getElementById('modalSeatInfo').textContent = seat + '  \xB7  ' + dayLabel;
-  document.getElementById('empInitials').value = '';
-  document.getElementById('empInitialsErr').classList.remove('show');
-  document.getElementById('empInitials').classList.remove('error');
+
+  /* Populate dropdown from resources */
+  var sel = document.getElementById('empSelect');
+  sel.innerHTML = '<option value="">— Select your name —</option>';
+  var resources = getData(KEYS.resources);
+  resources.forEach(function(r) {
+    var opt = document.createElement('option');
+    opt.value = r.initials;
+    opt.textContent = r.name + '  (' + r.initials + ')';
+    sel.appendChild(opt);
+  });
+  sel.value = '';
+  document.getElementById('empSelectErr').classList.remove('show');
+  sel.classList.remove('error');
   openModal('bookingModal');
-  setTimeout(function() {
-    var el = document.getElementById('empInitials');
-    if (el) { el.focus(); }
-  }, 220);
+  setTimeout(function() { if (sel) sel.focus(); }, 220);
 }
+
 function confirmBooking() {
-  var initials = document.getElementById('empInitials').value.trim().toUpperCase();
-  if (initials.length < 1 || initials.length > 3 || !/^[A-Z]+$/.test(initials)) {
-    document.getElementById('empInitialsErr').classList.add('show');
-    document.getElementById('empInitials').classList.add('error');
+  var sel      = document.getElementById('empSelect');
+  var initials = sel ? sel.value.trim().toUpperCase() : '';
+  if (!initials) {
+    document.getElementById('empSelectErr').classList.add('show');
+    sel.classList.add('error');
     return;
   }
-  document.getElementById('empInitialsErr').classList.remove('show');
-  document.getElementById('empInitials').classList.remove('error');
+  document.getElementById('empSelectErr').classList.remove('show');
+  sel.classList.remove('error');
+
   var bookings = getData(KEYS.bookings);
-  var alreadyBooked = false;
+
+  /* Check: seat already booked this day */
   for (var bi = 0; bi < bookings.length; bi++) {
     if (bookings[bi].seat === pendingCell.seat && bookings[bi].date === pendingCell.date) {
-      alreadyBooked = true; break;
+      showToast('Seat already booked for this day.', 'error');
+      closeModal('bookingModal'); return;
     }
   }
-  if (alreadyBooked) {
-    showToast('Seat already booked for this day.', 'error');
-    closeModal('bookingModal'); return;
+
+  /* Double-booking warning: same initials already has a seat on this date */
+  var existingSeat = null;
+  for (var di = 0; di < bookings.length; di++) {
+    if (bookings[di].initials === initials && bookings[di].date === pendingCell.date) {
+      existingSeat = bookings[di].seat; break;
+    }
   }
+  if (existingSeat) {
+    var proceed = confirm(
+      '\u26A0\uFE0F Double Booking Warning!\n\n' +
+      initials + ' already has seat ' + existingSeat + ' booked on this day.\n\n' +
+      'Are you sure you want to book ' + pendingCell.seat + ' as well?'
+    );
+    if (!proceed) return;
+  }
+
   bookings.push({ seat: pendingCell.seat, date: pendingCell.date, initials: initials });
   setData(KEYS.bookings, bookings);
   closeModal('bookingModal');
@@ -547,6 +610,56 @@ function exportBookings() {
     showToast('Exported!','success');
   } catch(e) { showToast('Export failed in this browser.','error'); }
 }
+
+/* ============================
+   EXPORT BOOKINGS — CSV
+   Filename includes the current week range for easy filing.
+   Columns: Seat, Date, Day, Initials, Employee Name
+============================= */
+function exportBookingsCSV() {
+  try {
+    var bookings  = getData(KEYS.bookings);
+    var resources = getData(KEYS.resources);
+
+    /* Build initials → name lookup */
+    var nameMap = {};
+    for (var ri = 0; ri < resources.length; ri++) {
+      nameMap[resources[ri].initials] = resources[ri].name;
+    }
+
+    /* Week range label for filename */
+    var weekStart = currentWeekStart ? isoDate(currentWeekStart) : 'all';
+    var weekEnd   = currentWeekStart ? isoDate(addDays(currentWeekStart, 6)) : '';
+    var fileLabel = weekStart + '_to_' + weekEnd;
+
+    /* Build CSV */
+    var dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    var lines = ['"Seat","Date","Day","Initials","Employee Name"'];
+    bookings.sort(function(a,b){ return a.date.localeCompare(b.date) || a.seat.localeCompare(b.seat); });
+    for (var bi = 0; bi < bookings.length; bi++) {
+      var b    = bookings[bi];
+      var d    = new Date(b.date + 'T00:00:00');
+      var day  = isNaN(d.getTime()) ? '' : dayNames[d.getDay()];
+      var name = nameMap[b.initials] || '';
+      lines.push(
+        '"' + b.seat    + '",' +
+        '"' + b.date    + '",' +
+        '"' + day       + '",' +
+        '"' + b.initials + '",' +
+        '"' + name      + '"'
+      );
+    }
+    var csv  = lines.join('\r\n');
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    var a    = document.createElement('a');
+    a.href     = URL.createObjectURL(blob);
+    a.download = 'focal_bookings_' + fileLabel + '.csv';
+    a.click();
+    showToast('CSV exported!', 'success');
+  } catch(e) {
+    showToast('CSV export failed in this browser.', 'error');
+  }
+}
 function adminBlockSeat() {
   var seat = document.getElementById('blockSeatInput').value.trim().toUpperCase();
   var date = document.getElementById('blockDateInput').value;
@@ -680,46 +793,7 @@ function showPage(page) {
 }
 
 /* ============================
-   BOOKING MODAL — initials only
-============================= */
-function openBookingModal(seat, date, dayLabel) {
-  pendingCell = { seat:seat, date:date, dayLabel:dayLabel };
-  document.getElementById('modalSeatInfo').textContent = seat + '  \xB7  ' + dayLabel;
-  document.getElementById('empInitials').value = '';
-  document.getElementById('empInitialsErr').classList.remove('show');
-  document.getElementById('empInitials').classList.remove('error');
-  openModal('bookingModal');
-  setTimeout(function() { var el = document.getElementById('empInitials'); if (el) el.focus(); }, 220);
-}
-function confirmBooking() {
-  var initials = document.getElementById('empInitials').value.trim().toUpperCase();
-  if (initials.length < 1 || initials.length > 3 || !/^[A-Z]+$/.test(initials)) {
-    document.getElementById('empInitialsErr').classList.add('show');
-    document.getElementById('empInitials').classList.add('error');
-    return;
-  }
-  document.getElementById('empInitialsErr').classList.remove('show');
-  document.getElementById('empInitials').classList.remove('error');
-  var bookings = getData(KEYS.bookings);
-  var alreadyBooked = false;
-  for (var ci = 0; ci < bookings.length; ci++) {
-    if (bookings[ci].seat === pendingCell.seat && bookings[ci].date === pendingCell.date) {
-      alreadyBooked = true; break;
-    }
-  }
-  if (alreadyBooked) {
-    showToast('Seat already booked for this day.', 'error');
-    closeModal('bookingModal'); return;
-  }
-  bookings.push({ seat: pendingCell.seat, date: pendingCell.date, initials: initials });
-  setData(KEYS.bookings, bookings);
-  closeModal('bookingModal');
-  renderTable();
-  showToast('\u2705 ' + pendingCell.seat + ' booked (' + initials + ') for ' + pendingCell.dayLabel + '!', 'success');
-}
-
-/* ============================
-   MANAGE MODAL (Edit/Cancel)
+   MANAGE MODAL (Edit/Cancel) — second reference removed (defined above)
 ============================= */
 function openManageModal(seat, date, booking) {
   manageCell = { seat:seat, date:date, booking:booking };
