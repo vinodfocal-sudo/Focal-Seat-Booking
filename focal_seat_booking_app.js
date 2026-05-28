@@ -1142,6 +1142,7 @@ function checkUserPass() {
     _appReady = false;
     _tableRendered = false;
     appInit(false);
+    scheduleInitRetries();
   } else {
     var err = document.getElementById('userPassErr');
     if (err) err.style.display = 'block';
@@ -1182,6 +1183,8 @@ function appInit(forceRetry) {
 
     /* User password gate — show overlay if not authenticated */
     if (!checkUserAuthed()) {
+      initDemoData();
+      renderTable();
       showUserLoginOverlay();
       return;
     }
