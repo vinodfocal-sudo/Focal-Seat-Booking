@@ -81,6 +81,40 @@ function sbSubscribeBookings() {
 }
 
 /* ============================
+   EMPLOYEE SUPABASE SYNC (Feature 6)
+   Employees stored in Supabase resources table.
+   All users see same live list.
+============================= */
+function syncResourcesFromSupabase() {
+  if (!_sb) return;
+  _sb.from('resources').select('name,initials,type,status').then(function(res) {
+    if (res.error) { console.warn('[FocalBooking] Resources fetch error:', res.error.message); return; }
+    if (!res.data || res.data.length === 0) {
+      console.log('[FocalBooking] Resources table empty — keeping local list.');
+      return;
+    }
+    setData(KEYS.resources, res.data);
+    renderResources();
+    renderAdminResources();
+    console.log('[FocalBooking] Synced', res.data.length, 'employees from Supabase.');
+  });
+}
+
+function sbSubscribeResources() {
+  if (!_sb) return;
+  try {
+    _sb.channel('resources-realtime')
+      .on('postgres_changes', {event:'*', schema:'public', table:'resources'}, function() {
+        console.log('[FocalBooking] Resources changed — re-syncing employees.');
+        syncResourcesFromSupabase();
+      })
+      .subscribe();
+  } catch(e) {
+    console.warn('[FocalBooking] sbSubscribeResources error:', e);
+  }
+}
+
+/* ============================
    FIX 2: localStorage SAFE WRAPPER
    Root cause: SharePoint iframe sandboxing and IE/Edge compatibility modes
    throw a SecurityError when localStorage is accessed, crashing ALL JS execution
@@ -175,11 +209,11 @@ function removeDataRaw(key) {
 ============================= */
 function initDemoData() {
   try {
-    if (getDataRaw('_focal_demo_v3')) {
-      console.log('[FocalBooking] Demo data v3 already loaded, skipping.');
+    if (getDataRaw('_focal_demo_v4')) {
+      console.log('[FocalBooking] Demo data v4 already loaded, skipping.');
       return;
     }
-    console.log('[FocalBooking] Loading demo data v3 — refreshing employee list...');
+    console.log('[FocalBooking] Loading demo data v4 — refreshing employee list...');
     /* Preserve any existing bookings and blocked seats; only reset resources */
     var existingBookings = getData(KEYS.bookings);
     var existingBlocked  = getData(KEYS.blocked);
@@ -220,14 +254,18 @@ function initDemoData() {
       { name:'Jayakrishnan O J',      initials:'JO',  type:'Office Seating', status:'Available' },
       { name:'Jeevan Roy',            initials:'JR',  type:'Office Seating', status:'Available' },
       { name:'Ajmal Khan',            initials:'AJK', type:'Office Seating', status:'Available' },
-      { name:'Vijesh Vijayan',        initials:'VV',  type:'Office Seating', status:'Available' }
+      { name:'Vijesh Vijayan',        initials:'VV',  type:'Office Seating', status:'Available' },
+      { name:'ShihabM',               initials:'SH',  type:'Office Seating', status:'Available' },
+      { name:'Akhil Menon',           initials:'AKM', type:'Office Seating', status:'Available' },
+      { name:'Samjid Basheer',        initials:'SB',  type:'Office Seating', status:'Available' },
+      { name:'Sharafath Mon',         initials:'SM',  type:'Office Seating', status:'Available' }
     ];
     setData(KEYS.bookings,  bookings);
     setData(KEYS.blocked,   blocked);
     if (!getData(KEYS.holidays).length) { setData(KEYS.holidays, []); }
     setData(KEYS.resources, resources);
-    setDataRaw('_focal_demo_v3', '1');
-    console.log('[FocalBooking] Demo data v3 loaded OK — 28 employees set.');
+    setDataRaw('_focal_demo_v4', '1');
+    console.log('[FocalBooking] Demo data v4 loaded OK — 32 employees set.');
   } catch(e) {
     console.warn('[FocalBooking] initDemoData failed (non-fatal):', e);
     /* Non-fatal — app renders with empty data rather than crashing */
@@ -299,6 +337,7 @@ function isoDate(d) {
 var currentWeekStart = null;  /* set safely in DOMContentLoaded */
 var pendingCell = null;
 var manageCell  = null;
+var selectedDateStr = null;  /* for day-wise stats — set on column click or defaults to today */
 
 /* SEATS: S01–S31 */
 var SEATS = (function() {
@@ -339,11 +378,22 @@ function renderTable() {
     var bookings = getData(KEYS.bookings);
     var blocked  = getData(KEYS.blocked);
     var holidays = getData(KEYS.holidays);
+    var todayStr = isoDate(new Date()); /* used for past-date coloring */
     console.log('[FocalBooking] Data loaded — bookings:', bookings.length, 'blocked:', blocked.length, 'holidays:', holidays.length);
 
     /* Build week dates array */
     var weekDates = [];
     for (var wi = 0; wi < 7; wi++) { weekDates.push(addDays(currentWeekStart, wi)); }
+
+    /* Default selected date = today if in this week, else Monday */
+    if (!selectedDateStr) {
+      var todayCheck = isoDate(new Date());
+      var inWeek = false;
+      for (var ti = 0; ti < weekDates.length; ti++) {
+        if (isoDate(weekDates[ti]) === todayCheck) { inWeek = true; break; }
+      }
+      selectedDateStr = inWeek ? todayCheck : isoDate(weekDates[0]);
+    }
 
     /* Update header */
     var thead = document.getElementById('tableHeader');
@@ -354,12 +404,19 @@ function renderTable() {
     thead.innerHTML = '<th>Seat</th>';
     for (var di = 0; di < weekDates.length; di++) {
       var d = weekDates[di];
+      var ds = isoDate(d);
       var th = document.createElement('th');
       var hol = null;
-      for (var hi = 0; hi < holidays.length; hi++) { if (holidays[hi].date === isoDate(d)) { hol = holidays[hi]; break; } }
+      for (var hi = 0; hi < holidays.length; hi++) { if (holidays[hi].date === ds) { hol = holidays[hi]; break; } }
       th.innerHTML = '<div class="th-day">' + DAYS[di] + '</div><div class="th-date">' + formatDate(d) + '</div>'
         + (hol ? '<div style="font-size:9px;background:rgba(255,255,255,0.2);border-radius:3px;padding:1px 3px;margin-top:1px;">' + hol.name + '</div>' : '');
       if (hol) th.style.background = '#1540a0';
+      if (ds === selectedDateStr) th.style.outline = '3px solid #fff';
+      th.style.cursor = 'pointer';
+      th.title = 'View stats for ' + DAYS[di] + ' ' + formatDate(d);
+      (function(dateStr) {
+        th.onclick = function() { selectedDateStr = dateStr; renderTable(); };
+      })(ds);
       thead.appendChild(th);
     }
 
@@ -377,6 +434,8 @@ function renderTable() {
     }
     tbody.innerHTML = '';
     var totalBooked = 0, totalBlocked = 0, totalHoliday = 0;
+    /* Day-wise: count only the selected date column */
+    var dayBooked = 0, dayBlocked = 0, dayHoliday = 0;
 
     for (var si = 0; si < SEATS.length; si++) {
       var seat = SEATS[si];
@@ -390,10 +449,18 @@ function renderTable() {
       for (var dj = 0; dj < weekDates.length; dj++) {
         var dw = weekDates[dj];
         var dateStr = isoDate(dw);
+        var isPast = dateStr < todayStr;
         var td  = document.createElement('td');
         td.className = 'seat-cell';
         var div = document.createElement('div');
         div.className = 'cell-inner';
+
+        /* Past date background */
+        if (isPast) {
+          td.style.background = '#ECBAE6';
+          div.style.background = '#ECBAE6';
+          div.style.borderColor = '#d48ecb';
+        }
 
         var holCell = null;
         for (var hh = 0; hh < holidays.length; hh++) { if (holidays[hh].date === dateStr) { holCell = holidays[hh]; break; } }
@@ -406,39 +473,62 @@ function renderTable() {
         var permBlocked = isPermanentlyBlocked(seat, dateStr);
 
         if (holCell) {
-          div.classList.add('holiday'); div.textContent = 'PH'; div.title = holCell.name; totalHoliday++;
+          div.classList.add('holiday'); div.textContent = 'PH'; div.title = holCell.name;
+          if (isPast) { div.style.background = '#d4a0ce'; }
+          totalHoliday++;
+          if (dateStr === selectedDateStr) dayHoliday++;
         } else if (permBlocked || blkCell) {
           div.classList.add('unavailable'); div.textContent = '\u2715';
           div.title = permBlocked ? 'Permanently Not Available' : 'Not Available';
+          if (isPast) { div.style.background = '#d4a0ce'; }
           totalBlocked++;
+          if (dateStr === selectedDateStr) dayBlocked++;
         } else if (bkgCell) {
-          div.classList.add('booked'); div.textContent = bkgCell.initials; div.title = 'Booked: ' + bkgCell.initials; totalBooked++;
+          div.classList.add('booked'); div.textContent = bkgCell.initials; div.title = 'Booked: ' + bkgCell.initials;
+          if (isPast) {
+            div.style.background = '#c47ebe';
+            div.style.color = '#fff';
+            div.style.borderColor = '#a85ca6';
+          }
+          totalBooked++;
+          if (dateStr === selectedDateStr) dayBooked++;
           /* Closure fix: capture seat/dateStr/bkgCell for onclick */
           (function(s, ds, bkg) {
             div.onclick = function() { openManageModal(s, ds, bkg); };
           })(seat, dateStr, bkgCell);
         } else {
-          div.classList.add('available'); div.title = 'Book ' + seat + ' \u2013 ' + formatDate(dw);
-          (function(s, ds, dayLabel) {
-            div.onclick = function() { openBookingModal(s, ds, dayLabel); };
-          })(seat, dateStr, DAYS[dj] + ', ' + formatDate(dw));
+          if (isPast) {
+            div.style.cursor = 'not-allowed';
+            div.title = 'Past date — cannot book';
+          } else {
+            div.classList.add('available'); div.title = 'Book ' + seat + ' \u2013 ' + formatDate(dw);
+            (function(s, ds, dayLabel) {
+              div.onclick = function() { openBookingModal(s, ds, dayLabel); };
+            })(seat, dateStr, DAYS[dj] + ', ' + formatDate(dw));
+          }
         }
         td.appendChild(div); tr.appendChild(td);
       }
       tbody.appendChild(tr);
     }
 
-    /* Summary */
-    var avail = SEATS.length - totalBooked - totalBlocked;
-    if (avail < 0) avail = 0;
+    /* Summary — day-wise for selected column */
+    var dayAvail = SEATS.length - dayBooked - dayBlocked;
+    if (dayAvail < 0) dayAvail = 0;
+    /* Find label for selected date */
+    var selLabel = '';
+    for (var xl = 0; xl < weekDates.length; xl++) {
+      if (isoDate(weekDates[xl]) === selectedDateStr) { selLabel = DAYS[xl] + ' ' + formatDate(weekDates[xl]); break; }
+    }
     var summaryEl = document.getElementById('summaryBadges');
     if (summaryEl) {
       summaryEl.innerHTML =
+        (selLabel ? '<span style="font-size:11px;color:var(--primary);font-weight:700;margin-right:8px;">📅 ' + selLabel + '</span>' : '') +
         '<span class="badge badge-total">\uD83E\uDE91 Total Seats: ' + SEATS.length + '</span>' +
-        '<span class="badge badge-booked">\u2705 Booked: ' + totalBooked + '</span>' +
-        '<span class="badge badge-available">\u25FD Available: ' + avail + '</span>' +
-        '<span class="badge badge-unavailable">\uD83D\uDEAB Not Available: ' + totalBlocked + '</span>' +
-        '<span class="badge badge-holiday">\uD83C\uDF89 Holiday: ' + totalHoliday + '</span>';
+        '<span class="badge badge-booked">\u2705 Booked: ' + dayBooked + '</span>' +
+        '<span class="badge badge-available">\u25FD Available: ' + dayAvail + '</span>' +
+        '<span class="badge badge-unavailable">\uD83D\uDEAB Not Available: ' + dayBlocked + '</span>' +
+        '<span class="badge badge-holiday">\uD83C\uDF89 Holiday: ' + dayHoliday + '</span>';
     }
     console.log('[FocalBooking] renderTable() completed successfully. Seats rendered:', SEATS.length);
     return true;
@@ -461,6 +551,7 @@ function renderTable() {
 ============================= */
 function changeWeek(dir) {
   currentWeekStart = addDays(currentWeekStart, dir*7);
+  selectedDateStr = null; /* reset to auto-detect today or Monday for new week */
   renderTable();
 }
 
@@ -558,17 +649,29 @@ function saveEditBooking() {
 }
 function cancelBooking() {
   if (!confirm('Cancel this booking?')) return;
-  var bookings = getData(KEYS.bookings);
-  var filtered = [];
-  for (var ci = 0; ci < bookings.length; ci++) {
-    if (!(bookings[ci].seat === manageCell.seat && bookings[ci].date === manageCell.date)) {
-      filtered.push(bookings[ci]);
-    }
+  var seat = manageCell.seat;
+  var date = manageCell.date;
+  closeModal('manageModal');
+  /* Fix: delete from Supabase FIRST, then update localStorage + render in callback
+     This prevents the realtime event from restoring the booking before local state is updated */
+  if (_sb) {
+    _sb.from('bookings').delete().eq('seat', seat).eq('date', date).then(function(res) {
+      if (res.error) { console.warn('[FocalBooking] Supabase delete error:', res.error.message); }
+      var bookings = getData(KEYS.bookings).filter(function(b) {
+        return !(b.seat === seat && b.date === date);
+      });
+      setData(KEYS.bookings, bookings);
+      renderTable();
+      showToast('\uD83D\uDDD1\uFE0F Booking cancelled.', 'info');
+    });
+  } else {
+    var bookings = getData(KEYS.bookings).filter(function(b) {
+      return !(b.seat === seat && b.date === date);
+    });
+    setData(KEYS.bookings, bookings);
+    renderTable();
+    showToast('\uD83D\uDDD1\uFE0F Booking cancelled.', 'info');
   }
-  setData(KEYS.bookings, filtered);
-  closeModal('manageModal'); renderTable();
-  showToast('Booking cancelled.', 'info');
-  sbDeleteBooking(manageCell.seat, manageCell.date);
 }
 
 /* ============================
@@ -673,11 +776,20 @@ function renderAdminBookings() {
 }
 function adminDeleteBooking(seat, date) {
   if (!confirm('Delete this booking?')) return;
-  var b = getData(KEYS.bookings).filter(function(x){ return !(x.seat===seat && x.date===date); });
-  setData(KEYS.bookings, b);
-  renderAdminBookings(); renderTable();
-  showToast('Booking deleted.','info');
-  sbDeleteBooking(seat, date);
+  if (_sb) {
+    _sb.from('bookings').delete().eq('seat', seat).eq('date', date).then(function(res) {
+      if (res.error) { console.warn('[FocalBooking] Supabase delete error:', res.error.message); }
+      var b = getData(KEYS.bookings).filter(function(x){ return !(x.seat===seat && x.date===date); });
+      setData(KEYS.bookings, b);
+      renderAdminBookings(); renderTable();
+      showToast('Booking deleted.', 'info');
+    });
+  } else {
+    var b = getData(KEYS.bookings).filter(function(x){ return !(x.seat===seat && x.date===date); });
+    setData(KEYS.bookings, b);
+    renderAdminBookings(); renderTable();
+    showToast('Booking deleted.', 'info');
+  }
 }
 function confirmResetAll() {
   if (!confirm('Delete ALL bookings? This cannot be undone.')) return;
@@ -847,19 +959,33 @@ function adminAddResource() {
   var initials = document.getElementById('resInitialsInput').value.trim().toUpperCase();
   if (!name||!initials) { showToast('Enter employee name and initials.','error'); return; }
   var resources = getData(KEYS.resources);
-  resources.push({ name:name, initials:initials, type:'Office Seating', status:'Available' });
+  var newRes = { name:name, initials:initials, type:'Office Seating', status:'Available' };
+  resources.push(newRes);
   setData(KEYS.resources, resources);
   document.getElementById('resNameInput').value='';
   document.getElementById('resInitialsInput').value='';
   renderAdminResources(); renderResources();
   showToast('Employee "' + name + '" added!','success');
+  /* Sync to Supabase so all users see the new employee */
+  if (_sb) {
+    _sb.from('resources').insert([{name:name, initials:initials, type:'Office Seating', status:'Available'}]).then(function(res) {
+      if (res.error) console.warn('[FocalBooking] Resource insert error:', res.error.message);
+    });
+  }
 }
 function adminDeleteResource(idx) {
   if (!confirm('Delete this employee?')) return;
   var r = getData(KEYS.resources);
-  r.splice(idx,1); setData(KEYS.resources,r);
+  var removed = r.splice(idx, 1)[0];
+  setData(KEYS.resources, r);
   renderAdminResources(); renderResources();
   showToast('Employee deleted.','info');
+  /* Sync deletion to Supabase */
+  if (_sb && removed) {
+    _sb.from('resources').delete().eq('initials', removed.initials).eq('name', removed.name).then(function(res) {
+      if (res.error) console.warn('[FocalBooking] Resource delete error:', res.error.message);
+    });
+  }
 }
 
 /* ============================
@@ -879,15 +1005,32 @@ function showPage(page) {
 }
 
 /* ============================
-   MANAGE MODAL (Edit/Cancel) — second reference removed (defined above)
+   MANAGE MODAL (Edit/Cancel) with ownership check
 ============================= */
 function openManageModal(seat, date, booking) {
   manageCell = { seat:seat, date:date, booking:booking };
   document.getElementById('manageSeatInfo').textContent = seat + '  \xB7  Booked by ' + booking.initials + '  \xB7  ' + date;
   document.getElementById('editInitials').value = booking.initials;
+  /* Reset ownership input if present */
+  var vi = document.getElementById('ownerVerifyInput');
+  if (vi) vi.value = '';
   openModal('manageModal');
 }
+
+function _checkOwnership() {
+  /* Admin always allowed */
+  if (getDataRaw(KEYS.adminLoggedIn) === '1') return true;
+  var vi = document.getElementById('ownerVerifyInput');
+  var entered = vi ? vi.value.trim().toUpperCase() : '';
+  if (!entered || entered !== manageCell.booking.initials) {
+    showToast('Enter your initials (' + manageCell.booking.initials + ') to edit or cancel this booking.', 'error');
+    return false;
+  }
+  return true;
+}
+
 function saveEditBooking() {
+  if (!_checkOwnership()) return;
   var initials = document.getElementById('editInitials').value.trim().toUpperCase();
   if (!initials || initials.length < 1 || initials.length > 3) { showToast('Enter 2\u20133 initials.','error'); return; }
   var bookings = getData(KEYS.bookings);
@@ -897,13 +1040,30 @@ function saveEditBooking() {
   setData(KEYS.bookings, bookings);
   closeModal('manageModal'); renderTable();
   showToast('\u270F\uFE0F Booking updated!','success');
+  sbUpdateBooking(manageCell.seat, manageCell.date, initials);
 }
+
 function cancelBooking() {
+  if (!_checkOwnership()) return;
   if (!confirm('Cancel this booking?')) return;
-  var bookings = getData(KEYS.bookings).filter(function(b){ return !(b.seat===manageCell.seat && b.date===manageCell.date); });
-  setData(KEYS.bookings, bookings);
-  closeModal('manageModal'); renderTable();
-  showToast('\uD83D\uDDD1\uFE0F Booking cancelled.','info');
+  var seat = manageCell.seat;
+  var date = manageCell.date;
+  closeModal('manageModal');
+  /* Delete from Supabase first, then update local state in callback — prevents reappear bug */
+  if (_sb) {
+    _sb.from('bookings').delete().eq('seat', seat).eq('date', date).then(function(res) {
+      if (res.error) { console.warn('[FocalBooking] Supabase delete error:', res.error.message); }
+      var bookings = getData(KEYS.bookings).filter(function(b){ return !(b.seat===seat && b.date===date); });
+      setData(KEYS.bookings, bookings);
+      renderTable();
+      showToast('\uD83D\uDDD1\uFE0F Booking cancelled.', 'info');
+    });
+  } else {
+    var bookings = getData(KEYS.bookings).filter(function(b){ return !(b.seat===seat && b.date===date); });
+    setData(KEYS.bookings, bookings);
+    renderTable();
+    showToast('\uD83D\uDDD1\uFE0F Booking cancelled.', 'info');
+  }
 }
 
 /* ============================
@@ -911,6 +1071,7 @@ function cancelBooking() {
 ============================= */
 function changeWeek(dir) {
   currentWeekStart = addDays(currentWeekStart, dir * 7);
+  selectedDateStr = null;
   renderTable();
 }
 
@@ -933,6 +1094,59 @@ function showToast(msg, type) {
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 3200);
   } catch(e) {}
+}
+
+/* ============================
+   USER PASSWORD — focal123 (sessionStorage, clears on tab close)
+============================= */
+var USER_PASS = 'focal123';
+
+function checkUserAuthed() {
+  try { return sessionStorage.getItem('focal_user_authed') === '1'; } catch(e) { return false; }
+}
+function setUserAuthed() {
+  try { sessionStorage.setItem('focal_user_authed', '1'); } catch(e) {}
+}
+function showUserLoginOverlay() {
+  if (document.getElementById('userLoginOverlay')) return; /* already shown */
+  var div = document.createElement('div');
+  div.id = 'userLoginOverlay';
+  div.className = 'admin-login-overlay';
+  div.style.cssText = 'display:flex!important;';
+  div.innerHTML =
+    '<div class="admin-login-box">' +
+      '<div class="admin-login-title">\uD83D\uDD12 Focal Seat Booking</div>' +
+      '<div class="admin-login-sub">Enter the access password to continue.</div>' +
+      '<div class="form-group">' +
+        '<label class="form-label">Password</label>' +
+        '<input class="form-input" type="password" id="userPassInput" placeholder="Enter password" ' +
+          'onkeydown="if(event.key===\'Enter\')checkUserPass()">' +
+        '<div class="error-msg" id="userPassErr" style="display:none;margin-top:6px;">' +
+          'Incorrect password. Please try again.</div>' +
+      '</div>' +
+      '<div class="modal-btns">' +
+        '<button class="btn btn-primary" style="width:100%;" onclick="checkUserPass()">' +
+          '\uD83D\uDD13 Enter</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(div);
+  setTimeout(function() { var i = document.getElementById('userPassInput'); if(i) i.focus(); }, 200);
+}
+function checkUserPass() {
+  var val = document.getElementById('userPassInput').value;
+  if (val === USER_PASS) {
+    setUserAuthed();
+    var el = document.getElementById('userLoginOverlay');
+    if (el) el.style.display = 'none';
+    /* Continue with full app init now that user is authenticated */
+    _appReady = false;
+    _tableRendered = false;
+    appInit(false);
+    scheduleInitRetries();
+  } else {
+    var err = document.getElementById('userPassErr');
+    if (err) err.style.display = 'block';
+  }
 }
 
 /* ============================
@@ -966,6 +1180,14 @@ function appInit(forceRetry) {
     /* CRITICAL: initialize currentWeekStart here, safely inside init */
     currentWeekStart = getMonday(new Date());
     console.log('[FocalBooking] currentWeekStart set to:', currentWeekStart);
+
+    /* User password gate — show overlay if not authenticated */
+    if (!checkUserAuthed()) {
+      initDemoData();
+      renderTable();
+      showUserLoginOverlay();
+      return;
+    }
 
     initDemoData();
     var rendered = renderTable();
@@ -1014,7 +1236,9 @@ function appInit(forceRetry) {
       /* Supabase: init client, fetch live bookings, subscribe to real-time changes */
       if (initSupabase()) {
         syncFromSupabase();
+        syncResourcesFromSupabase();
         sbSubscribeBookings();
+        sbSubscribeResources();
       }
     } else {
       console.warn('[FocalBooking] appInit() finished but table not rendered yet.');
