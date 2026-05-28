@@ -926,6 +926,24 @@ tbody tr:hover { background: #fafafa; }
 
     <div class="admin-grid">
 
+      <!-- All Bookings -->
+      <div class="admin-card" style="grid-column:1/-1;">
+        <div class="admin-card-title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          All Bookings
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Seat</th><th>Date</th><th>Initials</th><th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="adminBookingsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Block Seats -->
       <div class="admin-card">
         <div class="admin-card-title">🚫 Block / Unblock Seats</div>
@@ -992,24 +1010,6 @@ tbody tr:hover { background: #fafafa; }
         </div>
       </div>
 
-      <!-- All Bookings — moved to bottom -->
-      <div class="admin-card" style="grid-column:1/-1;">
-        <div class="admin-card-title">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          All Bookings
-        </div>
-        <div style="overflow-x:auto;">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>Seat</th><th>Date</th><th>Initials</th><th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="adminBookingsBody"></tbody>
-          </table>
-        </div>
-      </div>
-
     </div>
   </div>
 </div>
@@ -1056,12 +1056,6 @@ tbody tr:hover { background: #fafafa; }
       <button class="modal-close" onclick="closeModal('manageModal')">✕</button>
     </div>
     <div class="manage-info" id="manageSeatInfo">Seat S01 · Booked by VK</div>
-    <div class="form-group" id="ownerVerifyRow">
-      <label class="form-label">Your Initials * <span style="font-size:10px;color:var(--text-muted);font-weight:400;">(confirm you are the booking owner)</span></label>
-      <input class="form-input initials-input" id="ownerVerifyInput" placeholder="e.g. NJ" maxlength="3"
-        oninput="this.value=this.value.toUpperCase().replace(/[^A-Z]/g,'')">
-      <div style="font-size:10px;color:var(--text-muted);margin-top:3px;">Admin can edit/cancel any booking without this check.</div>
-    </div>
     <div class="form-group">
       <label class="form-label">Update Initials (2–3 letters)</label>
       <input class="form-input initials-input" id="editInitials" placeholder="VK" maxlength="3"
